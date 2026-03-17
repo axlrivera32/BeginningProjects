@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexdefi-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexdefi-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexdefi-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - nexdefi-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.prod
+    container_name: nexdefi-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      FROM_EMAIL: ${FROM_EMAIL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      ENVIRONMENT: production
+      SENTRY_DSN: ${SENTRY_DSN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+    networks:
+      - nexdefi-network
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile.prod
+    container_name: nexdefi-frontend
+    environment:
+      VITE_API_URL: ${API_URL}
+    restart: always
+    networks:
+      - nexdefi-network
+    expose:
+      - "3000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: nexdefi-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: always
+    networks:
+      - nexdefi-network
+
+networks:
+  nexdefi-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

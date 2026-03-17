@@ -1,0 +1,24 @@
+# NexDeFi v5 — backend dependencies
+# Compatible with Python 3.10–3.13 (use 3.12 for best wheel availability)
+
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+gunicorn>=21.0.0  # Production ASGI server
+
+# DB — aiosqlite for zero-config local dev; asyncpg for PostgreSQL in production
+sqlalchemy[asyncio]>=2.0.0
+aiosqlite>=0.19.0       # SQLite async driver — works out of the box, no server needed
+asyncpg>=0.29.0         # PostgreSQL async driver — only needed in production
+
+redis[hiredis]>=5.0.0   # Optional — falls back to in-memory if not running
+
+python-jose[cryptography]>=3.3.0
+passlib[argon2]>=1.7.4  # Use Argon2 instead of bcrypt for better compatibility
+python-multipart>=0.0.6
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+email-validator>=2.1.0  # Required for Pydantic email validation
+httpx>=0.25.0
+pyotp>=2.9.0
+sendgrid>=6.11.0
+aiofiles>=23.2.0
